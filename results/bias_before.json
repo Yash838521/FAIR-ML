@@ -1,0 +1,164 @@
+{
+  "gender": {
+    "statistical_parity": {
+      "group_rates": {
+        "Female": 0.12131367292225201,
+        "Male": 0.47186932849364793
+      },
+      "spd": 0.3506,
+      "max_group": "Male",
+      "min_group": "Female",
+      "is_fair": false
+    },
+    "disparate_impact": {
+      "group_rates": {
+        "Female": 0.12131367292225201,
+        "Male": 0.47186932849364793
+      },
+      "privileged_group": "Male",
+      "di_per_group": {
+        "Female": 0.2571
+      },
+      "worst_di": 0.2571,
+      "is_fair": false
+    },
+    "equalized_odds": {
+      "per_group": {
+        "Female": {
+          "TPR": 0.4419,
+          "FPR": 0.0783,
+          "PPV": 0.4309,
+          "support": 2984
+        },
+        "Male": {
+          "TPR": 0.8216,
+          "FPR": 0.3135,
+          "PPV": 0.5427,
+          "support": 6061
+        }
+      },
+      "tpr_gap": 0.3797,
+      "fpr_gap": 0.2352,
+      "is_fair_tpr": false,
+      "is_fair_fpr": false
+    },
+    "calibration": {
+      "per_group": {
+        "Female": {
+          "mean_predicted": 0.2226,
+          "actual_rate": 0.1183,
+          "gap": 0.1043
+        },
+        "Male": {
+          "mean_predicted": 0.4857,
+          "actual_rate": 0.3117,
+          "gap": 0.174
+        }
+      },
+      "max_calibration_gap": 0.174,
+      "is_calibrated": false
+    }
+  },
+  "race": {
+    "statistical_parity": {
+      "group_rates": {
+        "White": 0.38498196805770224,
+        "Black": 0.14016489988221437,
+        "Asian-Pac-Islander": 0.3208955223880597,
+        "Other": 0.14705882352941177,
+        "Amer-Indian-Eskimo": 0.1875
+      },
+      "spd": 0.2448,
+      "max_group": "White",
+      "min_group": "Black",
+      "is_fair": false
+    },
+    "disparate_impact": {
+      "group_rates": {
+        "White": 0.38498196805770224,
+        "Black": 0.14016489988221437,
+        "Asian-Pac-Islander": 0.3208955223880597,
+        "Other": 0.14705882352941177,
+        "Amer-Indian-Eskimo": 0.1875
+      },
+      "privileged_group": "White",
+      "di_per_group": {
+        "Black": 0.3641,
+        "Asian-Pac-Islander": 0.8335,
+        "Other": 0.382,
+        "Amer-Indian-Eskimo": 0.487
+      },
+      "worst_di": 0.3641,
+      "is_fair": false
+    },
+    "equalized_odds": {
+      "per_group": {
+        "White": {
+          "TPR": 0.7714,
+          "FPR": 0.2466,
+          "PPV": 0.5283,
+          "support": 7764
+        },
+        "Black": {
+          "TPR": 0.6,
+          "FPR": 0.0753,
+          "PPV": 0.5294,
+          "support": 849
+        },
+        "Asian-Pac-Islander": {
+          "TPR": 0.7534,
+          "FPR": 0.159,
+          "PPV": 0.6395,
+          "support": 268
+        },
+        "Other": {
+          "TPR": 0.6667,
+          "FPR": 0.0678,
+          "PPV": 0.6,
+          "support": 68
+        },
+        "Amer-Indian-Eskimo": {
+          "TPR": 0.625,
+          "FPR": 0.1477,
+          "PPV": 0.2778,
+          "support": 96
+        }
+      },
+      "tpr_gap": 0.1714,
+      "fpr_gap": 0.1788,
+      "is_fair_tpr": false,
+      "is_fair_fpr": false
+    },
+    "calibration": {
+      "per_group": {
+        "White": {
+          "mean_predicted": 0.4198,
+          "actual_rate": 0.2637,
+          "gap": 0.1561
+        },
+        "Black": {
+          "mean_predicted": 0.2414,
+          "actual_rate": 0.1237,
+          "gap": 0.1177
+        },
+        "Asian-Pac-Islander": {
+          "mean_predicted": 0.3787,
+          "actual_rate": 0.2724,
+          "gap": 0.1063
+        },
+        "Other": {
+          "mean_predicted": 0.2259,
+          "actual_rate": 0.1324,
+          "gap": 0.0935
+        },
+        "Amer-Indian-Eskimo": {
+          "mean_predicted": 0.2815,
+          "actual_rate": 0.0833,
+          "gap": 0.1982
+        }
+      },
+      "max_calibration_gap": 0.1982,
+      "is_calibrated": false
+    }
+  }
+}

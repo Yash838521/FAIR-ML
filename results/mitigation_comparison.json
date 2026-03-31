@@ -1,0 +1,31 @@
+{
+  "original": {
+    "accuracy": 0.7735765616362631,
+    "f1": 0.6251830161054174,
+    "roc_auc": 0.8477000491597151,
+    "gender_spd": 0.3506
+  },
+  "reweighing": {
+    "accuracy": 0.7512437810945274,
+    "f1": 0.5853298931072614,
+    "roc_auc": 0.8290521393261592,
+    "gender_spd": 0.1087,
+    "mcnemar": {
+      "chi2": 40.3204,
+      "p_value": 0.0,
+      "significant": "True"
+    }
+  },
+  "threshold": {
+    "accuracy": 0.8176893311221669,
+    "f1": 0.5596795727636849,
+    "roc_auc": 0.8477000491597151,
+    "threshold_used": 0.74,
+    "gender_spd": 0.187,
+    "mcnemar": {
+      "chi2": 92.1489,
+      "p_value": 0.0,
+      "significant": "True"
+    }
+  }
+}
