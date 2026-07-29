@@ -1,135 +1,104 @@
-# ⚖️ Fairness-Aware Machine Learning System
+# FAIR-ML: Fairness-Aware Machine Learning
 
-> Predict income. Detect bias. Explain decisions. Mitigate harm.
+An end-to-end responsible machine-learning project that trains income classifiers,
+measures group-level performance disparities, explains model behaviour with SHAP,
+and evaluates mitigation trade-offs.
 
-A production-grade ML pipeline on the **Adult Income dataset** (UCI) that goes beyond accuracy to measure, explain, and reduce algorithmic bias — with a full interactive Streamlit dashboard.
+[Live demo](https://fair-ml.streamlit.app) | Dataset: UCI Adult Income
 
----
+## Project overview
 
-## 🗂 Project Structure
+The pipeline processes 48,842 Adult Income records and compares Logistic Regression
+with Random Forest. It evaluates predictive performance alongside fairness metrics
+for gender and race, including statistical parity difference, disparate impact,
+equalized-odds gaps and calibration. It also includes intersectional analysis,
+SHAP-based explainability, proxy-variable checks, reweighing and threshold
+adjustment.
 
+## Achieved results
+
+| Experiment | Accuracy | ROC-AUC | Gender SPD |
+|---|---:|---:|---:|
+| Random Forest | 0.8583 | 0.9089 | - |
+| Logistic Regression | 0.7736 | 0.8477 | 0.3506 |
+| Logistic Regression with reweighing | 0.7512 | 0.8291 | 0.1087 |
+| Logistic Regression with threshold adjustment | 0.8177 | 0.8477 | 0.1870 |
+
+Reweighing reduced gender statistical parity difference from 0.3506 to 0.1087,
+while accuracy moved from 0.7736 to 0.7512. These results demonstrate a measurable
+fairness-performance trade-off rather than claiming that bias was eliminated.
+
+The Random Forest model achieved the strongest predictive performance. SHAP
+analysis was used to explain behaviour across 14 model features, while group and
+proxy analyses examined how sensitive and correlated variables affected outcomes.
+
+## Pipeline
+
+1. Download and clean the UCI Adult Income data.
+2. Encode categorical variables and scale numerical features without test-set leakage.
+3. Train Logistic Regression and Random Forest classifiers.
+4. Evaluate accuracy, precision, recall, F1, ROC-AUC and confusion matrices.
+5. Measure fairness by gender, race and intersectional groups.
+6. Generate global and group-level SHAP explanations.
+7. Compare reweighing and threshold-adjustment mitigation strategies.
+8. Save structured JSON and CSV outputs for the Streamlit dashboard.
+
+## Repository structure
+
+```text
+FAIR-ML/
+|-- data/                         # Downloaded dataset files
+|-- dashboard/
+|   `-- streamlit_app.py          # Interactive analysis dashboard
+|-- results/                      # Reproducible JSON and CSV outputs
+|-- src/
+|   |-- bias.py                   # Fairness metrics and mitigation
+|   |-- explainability.py         # SHAP and proxy-variable analysis
+|   |-- model.py                  # Training and evaluation
+|   `-- preprocessing.py          # Leakage-aware data preparation
+|-- pipeline.py                   # End-to-end orchestration
+`-- requirements.txt
 ```
-FAIRML/
-├── data/                        # Auto-downloaded Adult Income dataset
-├── src/
-│   ├── preprocessing.py         # Cleaning, encoding, scaling, sensitive feature handling
-│   ├── model.py                 # LR + RF training, evaluation, threshold optimisation
-│   ├── bias.py                  # SPD, DI, Equalized Odds, Calibration, Intersectionality, Reweighing
-│   └── explainability.py        # SHAP global/per-group, proxy variable detection
-├── dashboard/
-│   └── streamlit_app.py         # Interactive 6-tab dashboard
-├── results/                     # Auto-generated JSON + CSV outputs
-├── pipeline.py                  # End-to-end orchestration script
-├── requirements.txt
-└── README.md
+
+## Run locally
+
+```bash
+git clone https://github.com/Yash838521/FAIR-ML.git
+cd FAIR-ML
+python -m venv .venv
 ```
 
----
+Activate the environment, then run:
 
-## ⚡ Quick Start
-
-### 1. Install dependencies
 ```bash
 pip install -r requirements.txt
-```
-
-### 2. Run the pipeline (downloads data, trains models, saves all results)
-```bash
 python pipeline.py
-```
-
-### 3. Launch the dashboard
-```bash
 streamlit run dashboard/streamlit_app.py
 ```
 
-Open your browser at **http://localhost:8501**
+The dashboard will be available at `http://localhost:8501`.
 
----
+## Dashboard
 
-## 🔬 What the Pipeline Does
+The six dashboard views cover:
 
-### Step 1 — Preprocessing (`src/preprocessing.py`)
-- Downloads the UCI Adult Income dataset automatically
-- Removes `?` entries (missing values)
-- Label-encodes categorical features (workclass, occupation, education, etc.)
-- StandardScales numerical features (age, hours-per-week, capital-gain, etc.)
-- Preserves `gender` and `race` as both raw strings and binary encodings for fairness analysis
-- Stratified 80/20 train/test split
+- model performance and confusion matrices
+- gender and race fairness metrics
+- intersectional group comparisons
+- global and group-level SHAP explanations
+- proxy-variable analysis
+- mitigation results and accuracy trade-offs
 
-### Step 2 — Model Training (`src/model.py`)
-Two models are trained:
+## Responsible-use note
 
-| Model | Why |
-|---|---|
-| **Logistic Regression** | Primary model — interpretable, linear, suitable for SHAP |
-| **Random Forest** | Comparison — higher accuracy, suitable for TreeSHAP |
+This is an educational analysis of a public benchmark dataset. The Adult Income
+data is dated and contains historical social inequalities. Model outputs must not
+be used for employment, credit or other consequential decisions. Fairness metrics
+are diagnostic tools and do not establish that a model is fair in every context.
 
-Both use `class_weight="balanced"` to handle the income class imbalance (~75% ≤50K).
+## References
 
-Evaluation metrics: Accuracy, Precision, Recall, F1, ROC-AUC, Confusion Matrix.
-
-### Step 3 — Bias Detection (`src/bias.py`)
-
-Four fairness metrics are computed for **gender** and **race** separately:
-
-| Metric | Definition | Fair threshold |
-|---|---|---|
-| **Statistical Parity Difference (SPD)** | P(ŷ=1\|group_A) − P(ŷ=1\|group_B) | \|SPD\| < 0.10 |
-| **Disparate Impact (DI)** | P(ŷ=1\|unprivileged) / P(ŷ=1\|privileged) | DI ≥ 0.80 |
-| **Equalized Odds** | TPR gap + FPR gap across groups | Gap < 0.10 |
-| **Calibration** | Mean predicted probability vs actual rate per group | Gap < 0.05 |
-
-### Step 4 — Intersectional Analysis (`src/bias.py`)
-Analyses **gender × race** combinations (e.g., Female + Black, Male + White) to surface compounded bias that single-attribute analysis misses.
-
-### Step 5 — Explainability (`src/explainability.py`)
-- **TreeSHAP** on Random Forest for global feature importance
-- **Per-group SHAP** comparison: are features weighted differently for men vs women?
-- **Proxy variable detection**: Spearman correlation between features and sensitive attributes. Features like `relationship` and `marital_status` often act as gender proxies.
-
-### Step 6 — Bias Mitigation (`src/bias.py` + `src/model.py`)
-
-Two mitigation techniques:
-
-**A. Reweighing (pre-processing)**
-Assigns sample weights so that every (group, label) cell — e.g., (Male, >50K), (Female, ≤50K) — has equal expected weight, removing statistical dependence before training.
-
-**B. Threshold Adjustment (post-processing)**
-Grid-searches decision thresholds (0.30–0.75) to minimise Statistical Parity Difference while maintaining accuracy ≥ 78%.
-
-**Significance testing:** McNemar's test validates that the difference between original and mitigated predictions is statistically significant (p < 0.05).
-
----
-
-## 📊 Dashboard Tabs
-
-| Tab | Content |
-|---|---|
-| **Overview** | KPIs, pipeline summary, quick fairness table |
-| **Model Performance** | Metrics comparison, confusion matrices, AUC |
-| **Bias Detection** | SPD, DI, Equalized Odds, Calibration — interactive by attribute |
-| **Intersectionality** | Gender × Race positive rates and TPR/FPR |
-| **Explainability** | SHAP importance, per-group SHAP, proxy detection |
-| **Mitigation** | Before/after comparison, trade-off analysis, McNemar test |
-
----
-
-## 🔑 Key Findings (Expected)
-
-1. The model shows **significant gender bias**: men receive positive predictions at ~2× the rate of women
-2. **Race bias** is even stronger: White individuals receive >50K predictions at substantially higher rates
-3. **Intersectional analysis** reveals that certain groups (e.g., non-White women) face compounded disadvantage
-4. Features like `relationship`, `marital_status`, and `occupation` act as **gender proxy variables**
-5. **Reweighing** reduces SPD by ~30–40% with minimal accuracy cost
-6. **Threshold adjustment** can reduce SPD by ~50–60% at a ~2% accuracy cost
-
----
-
-## 📚 References
-
-- Kamiran, F. & Calders, T. (2012). *Data preprocessing techniques for classification without discrimination*
-- Hardt, M., Price, E. & Srebro, N. (2016). *Equality of Opportunity in Supervised Learning*
-- Lundberg, S. & Lee, S. (2017). *A Unified Approach to Interpreting Model Predictions (SHAP)*
-- Chouldechova, A. (2017). *Fair prediction with disparate impact*
-- Dua, D. & Graff, C. (2019). *UCI Machine Learning Repository — Adult Dataset*
+- Kamiran, F. and Calders, T. (2012), data preprocessing for classification without discrimination
+- Hardt, M., Price, E. and Srebro, N. (2016), equality of opportunity in supervised learning
+- Lundberg, S. and Lee, S. (2017), SHAP
+- UCI Machine Learning Repository, Adult dataset
