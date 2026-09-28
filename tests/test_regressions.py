@@ -100,6 +100,7 @@ def test_three_way_split_is_disjoint_and_scaler_fits_training_only():
 def test_saved_outputs_have_real_metrics_and_labels():
     result = json.loads((ROOT / 'results/mitigation_comparison.json').read_text())
     for scenario in ['original', 'reweighing', 'threshold']:
+        assert 0 <= result[scenario]['gender_di'] <= 1
         assert 0 <= result[scenario]['gender_tpr_gap'] <= 1
         assert 0 <= result[scenario]['gender_fpr_gap'] <= 1
     assert isinstance(result['reweighing']['mcnemar']['significant'], bool)

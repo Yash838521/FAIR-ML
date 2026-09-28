@@ -5,7 +5,8 @@
     "roc_auc": 0.8474674944660899,
     "gender_spd": 0.3472,
     "gender_tpr_gap": 0.3733,
-    "gender_fpr_gap": 0.2337
+    "gender_fpr_gap": 0.2337,
+    "gender_di": 0.261
   },
   "reweighing": {
     "accuracy": 0.7502487562189055,
@@ -18,7 +19,8 @@
       "significant": true
     },
     "gender_tpr_gap": 0.0236,
-    "gender_fpr_gap": 0.0066
+    "gender_fpr_gap": 0.0066,
+    "gender_di": 0.7404
   },
   "threshold": {
     "accuracy": 0.8164731896075179,
@@ -38,6 +40,7 @@
       "fairness_gap": 0.1746,
       "accuracy": 0.822139303482587,
       "feasible": true
-    }
+    },
+    "gender_di": 0.1788
   }
 }

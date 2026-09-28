@@ -226,6 +226,7 @@ def run():
     }
 
     for name, report in [("original", bias_gender), ("reweighing", bias_after_rw), ("threshold", bias_after_th)]:
+        mitigation_results[name]["gender_di"] = report["disparate_impact"]["worst_di"]
         mitigation_results[name]["gender_tpr_gap"] = report["equalized_odds"]["tpr_gap"]
         mitigation_results[name]["gender_fpr_gap"] = report["equalized_odds"]["fpr_gap"]
     mitigation_results["threshold"]["validation_selection"] = best_thresh

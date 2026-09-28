@@ -993,6 +993,7 @@ with tabs[5]:
             ("Gender SPD ↓", "gender_spd",     True),
             ("Gender DI ↑",  "gender_di",      False),
             ("TPR Gap ↓",    "gender_tpr_gap", True),
+            ("FPR Gap ↓",    "gender_fpr_gap", True),
         ]
         def sfmt(d, k):
             v = d.get(k); return f"{v:.4f}" if v is not None else "—"
@@ -1011,9 +1012,9 @@ with tabs[5]:
             fig = go.Figure()
             for scenario, color, name in scenarios:
                 fig.add_trace(go.Bar(
-                    name=name, x=["SPD", "TPR Gap"],
+                    name=name, x=["SPD", "TPR Gap", "FPR Gap"],
                     y=[abs(scenario.get("gender_spd", 0)),
-                       scenario.get("gender_tpr_gap")],
+                       scenario.get("gender_tpr_gap"), scenario.get("gender_fpr_gap")],
                     marker_color=color, marker_line_width=0, opacity=0.88,
                 ))
             fig.add_hline(y=0.1, line_dash="dash",
@@ -1052,7 +1053,7 @@ with tabs[5]:
         pairs  = [(mc_rw, "Reweighing", "")]
         if thr:
             pairs.append((mc_thr, "Threshold Adjustment",
-                          f"Threshold used: {thr.get('threshold_used','—')}"))
+                          f"Threshold used: {thr['threshold_used']:.2f}"))
 
         cols_mc = st.columns(len(pairs))
         for col, (mc, label, note) in zip(cols_mc, pairs):
@@ -1066,7 +1067,7 @@ with tabs[5]:
                                 font-size:0.85rem;color:#f0ede8;margin-bottom:12px;">{label}</div>
                     <div style="font-family:'IBM Plex Mono',monospace;font-size:0.72rem;
                                 color:#a8a49e;line-height:1.9;">
-                        χ² = {mc.get('chi2','—')}<br>p = {mc.get('p_value','—')}
+                        χ² = {mc['chi2']:.4f}<br>p = {mc['p_value']:.3g}
                     </div>
                     <div style="margin-top:14px;">{pill(sig, 'Significant', 'Not Significant')}</div>
                     {'<div style="font-family:var(--mono);font-size:0.65rem;color:#3d3b38;margin-top:8px;">' + note + '</div>' if note else ''}
