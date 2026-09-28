@@ -130,9 +130,9 @@ def mcnemar_test(y_pred_before, y_pred_after, y_test) -> dict:
     c = ((y_pred_before == y_test) & (y_pred_after != y_test)).sum()
     if b + c == 0:
         return {"chi2": 0, "p_value": 1.0, "significant": False}
-    chi2 = (abs(b - c) - 1) ** 2 / (b + c)
-    p_value = 1 - stats.chi2.cdf(chi2, df=1)
-    return {"chi2": round(chi2, 4), "p_value": round(p_value, 4), "significant": p_value < 0.05}
+    chi2 = max(0, abs(b - c) - 1) ** 2 / (b + c)
+    p_value = stats.chi2.sf(chi2, df=1)
+    return {"chi2": float(chi2), "p_value": float(p_value), "significant": bool(p_value < 0.05)}
 
 
 # ─────────────────────────────────────────────
@@ -141,10 +141,10 @@ def mcnemar_test(y_pred_before, y_pred_after, y_test) -> dict:
 
 def find_fair_threshold(y_test, y_proba, sensitive_series,
                         target_metric: str = "statistical_parity",
-                        thresholds=None) -> dict:
+                        thresholds=None, accuracy_floor=0.78) -> dict:
     """
     Grid-search thresholds to minimise the chosen fairness gap
-    while keeping accuracy above a floor (default 80%).
+    on validation data while keeping accuracy above a floor (default 78%).
     Returns the best threshold and its metrics.
     """
     from src.bias import compute_statistical_parity, compute_disparate_impact
@@ -152,18 +152,24 @@ def find_fair_threshold(y_test, y_proba, sensitive_series,
     if thresholds is None:
         thresholds = np.arange(0.3, 0.75, 0.01)
 
-    best = {"threshold": 0.5, "fairness_gap": 999, "accuracy": 0}
+    if target_metric != "statistical_parity":
+        raise ValueError("Only statistical_parity is supported")
+    best = None
 
     for t in thresholds:
         y_pred = (y_proba >= t).astype(int)
         acc = accuracy_score(y_test, y_pred)
-        if acc < 0.78:          # accuracy floor
+        if acc < accuracy_floor:
             continue
         sp = compute_statistical_parity(y_pred, sensitive_series)
         gap = abs(sp.get("spd", 999))
-        if gap < best["fairness_gap"]:
-            best = {"threshold": round(t, 3), "fairness_gap": round(gap, 4), "accuracy": round(acc, 4)}
+        if best is None or gap < best["fairness_gap"]:
+            best = {"threshold": float(t), "fairness_gap": float(gap), "accuracy": float(acc), "feasible": True}
 
+    if best is None:
+        pred = (y_proba >= 0.5).astype(int)
+        return {"threshold": 0.5, "fairness_gap": compute_statistical_parity(pred, sensitive_series)["spd"],
+                "accuracy": float(accuracy_score(y_test, pred)), "feasible": False}
     return best
 
 

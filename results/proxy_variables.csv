@@ -1,3 +1,3 @@
 feature,sensitive_attr,spearman_corr,abs_corr
-relationship,gender,-0.5834,0.5834
-hours_per_week,gender,0.2332,0.2332
+relationship,gender,-0.6193,0.6193
+hours_per_week,gender,0.263,0.263

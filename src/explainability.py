@@ -15,6 +15,19 @@ import matplotlib
 matplotlib.use("Agg")   
 import matplotlib.pyplot as plt
 from sklearn.inspection import permutation_importance
+from scipy.stats import spearmanr
+
+
+def positive_class_shap(values):
+    """Normalize legacy list and modern (samples, features, classes) outputs."""
+    if isinstance(values, list):
+        values = values[1]
+    values = np.asarray(values)
+    if values.ndim == 3:
+        values = values[:, :, 1]
+    if values.ndim != 2:
+        raise ValueError(f"Unexpected SHAP shape: {values.shape}")
+    return values
 
 
 # ─────────────────────────────────────────────
@@ -56,7 +69,7 @@ def compute_shap_values(explainer, X, max_samples: int = 500,
     else:
         shap_vals = explainer.shap_values(X_sample)
 
-    return shap_vals, X_sample
+    return positive_class_shap(shap_vals), X_sample
 
 # ─────────────────────────────────────────────
 # Global Feature Importance
@@ -101,6 +114,7 @@ def shap_by_group(shap_vals, X, sensitive_attr, feature_names):
     Handles binary/multiclass SHAP outputs safely.
     """
 
+    shap_vals = positive_class_shap(shap_vals)
     results = {}
 
     groups = np.unique(sensitive_attr)
@@ -127,7 +141,8 @@ def shap_by_group(shap_vals, X, sensitive_attr, feature_names):
     # Convert safely into DataFrame
     df = pd.DataFrame(results, index=feature_names)
 
-    return df
+    df.index.name = "feature"
+    return df.reset_index()
 # ─────────────────────────────────────────────
 # Proxy Variable Detection
 # ─────────────────────────────────────────────
@@ -150,7 +165,9 @@ def detect_proxy_variables(X: pd.DataFrame,
             if feat in sensitive_df.columns:
                 continue
             x = X[feat].values
-            corr = np.corrcoef(x, s)[0, 1]
+            if np.unique(x).size < 2 or np.unique(s).size < 2:
+                continue
+            corr = spearmanr(x, s).statistic
             if abs(corr) >= threshold:
                 records.append({
                     "feature": feat,
@@ -159,7 +176,7 @@ def detect_proxy_variables(X: pd.DataFrame,
                     "abs_corr": round(abs(corr), 4),
                 })
 
-    df = pd.DataFrame(records).sort_values("abs_corr", ascending=False)
+    df = pd.DataFrame(records, columns=["feature", "sensitive_attr", "spearman_corr", "abs_corr"]).sort_values("abs_corr", ascending=False)
     return df.reset_index(drop=True)
 
 
@@ -178,7 +195,7 @@ def explain_single_prediction(explainer, X_single: pd.DataFrame,
         sv = explainer.shap_values(X_single)
         if isinstance(sv, list):
             sv = sv[1]
-        sv = sv.flatten()
+        sv = positive_class_shap(sv).flatten()
     else:
         sv = explainer.shap_values(X_single).flatten()
 

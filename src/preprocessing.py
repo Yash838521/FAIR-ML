@@ -178,7 +178,8 @@ def build_features(df):
 # MAIN PIPELINE
 # ─────────────────────────────────────────────────────────────
 
-def run_preprocessing(train_path, test_path=None, test_size=0.2, random_state=42):
+def run_preprocessing(train_path, test_path=None, test_size=0.2, random_state=42,
+                      validation_size=0.0):
 
     df = load_data(train_path, test_path)
     df = clean_data(df)
@@ -193,8 +194,17 @@ def run_preprocessing(train_path, test_path=None, test_size=0.2, random_state=42
         stratify=df["income"]
     )
 
-    # encode categoricals safely
-    train_df, test_df = encode_categoricals(train_df, test_df)
+    validation_df = None
+    if validation_size:
+        train_df, validation_df = train_test_split(
+            train_df, test_size=validation_size, random_state=random_state,
+            stratify=train_df["income"]
+        )
+    encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
+    train_df[CATEGORICAL_COLS] = encoder.fit_transform(train_df[CATEGORICAL_COLS])
+    test_df[CATEGORICAL_COLS] = encoder.transform(test_df[CATEGORICAL_COLS])
+    if validation_df is not None:
+        validation_df[CATEGORICAL_COLS] = encoder.transform(validation_df[CATEGORICAL_COLS])
 
     # build features
     X_train, y_train, sens_train = build_features(train_df)
@@ -208,13 +218,18 @@ def run_preprocessing(train_path, test_path=None, test_size=0.2, random_state=42
 
     feature_names = X_train.columns.tolist()
 
-    return (
+    result = (
         X_train, X_test,
         y_train, y_test,
         sens_train, sens_test,
         feature_names,
         scaler
     )
+    if validation_df is not None:
+        X_val, y_val, sens_val = build_features(validation_df)
+        X_val[NUMERICAL_COLS] = scaler.transform(X_val[NUMERICAL_COLS])
+        return result + (X_val, y_val, sens_val)
+    return result
 
 
 # ─────────────────────────────────────────────────────────────

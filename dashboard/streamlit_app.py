@@ -341,28 +341,39 @@ OCHRE = "#c4934a"
 DUST  = "#a89880"
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
-@st.cache_data
+@st.cache_data(ttl=60)
 def load_json(filename):
     path = os.path.join(RESULTS_DIR, filename)
     if not os.path.exists(path): return None
-    with open(path) as f: return json.load(f)
+    try:
+        with open(path, encoding="utf-8") as f:
+            result = json.load(f)
+        if not isinstance(result, dict):
+            raise ValueError("Expected a JSON object")
+        return result
+    except (OSError, ValueError) as exc:
+        st.error(f"Could not load {filename}. Regenerate results with python pipeline.py. {exc}")
+        st.stop()
 
-@st.cache_data
+@st.cache_data(ttl=60)
 def load_csv(filename):
     path = os.path.join(RESULTS_DIR, filename)
     if not os.path.exists(path): return None
-    return pd.read_csv(path)
+    try:
+        return pd.read_csv(path)
+    except (OSError, ValueError, pd.errors.ParserError) as exc:
+        st.error(f"Could not load {filename}. Regenerate results with python pipeline.py. {exc}")
+        st.stop()
 
 def ensure_feature_col(df):
     if df is None: return None
     df = df.copy()
     if "feature" not in df.columns:
-        df = df.reset_index().rename(columns={"index": "feature"})
-    if "feature" not in df.columns:
-        df = df.rename(columns={df.columns[0]: "feature"})
+        st.error("SHAP feature labels are missing. Regenerate results with python pipeline.py.")
+        st.stop()
     return df
 
-def pill(is_fair, fair_text="Fair", unfair_text="Biased"):
+def pill(is_fair, fair_text="Within tolerance", unfair_text="Outside tolerance"):
     cls  = "pill-fair" if is_fair else "pill-unfair"
     text = fair_text  if is_fair else unfair_text
     return f'<span class="pill {cls}">{text}</span>'
@@ -384,7 +395,10 @@ def callout(label, body, color=None):
             f'<div class="callout-body">{body}</div></div>')
 
 def results_available():
-    return os.path.exists(os.path.join(RESULTS_DIR, "model_metrics.json"))
+    required = ("model_metrics.json", "bias_before.json", "mitigation_comparison.json",
+                "shap_importance.csv", "shap_by_group.csv", "proxy_variables.csv",
+                "intersectional_bias.csv")
+    return all(os.path.isfile(os.path.join(RESULTS_DIR, name)) for name in required)
 
 
 # ─── Sidebar ─────────────────────────────────────────────────────────────────
@@ -418,7 +432,7 @@ with st.sidebar:
 
     st.divider()
     st.markdown(eyebrow("Dataset"), unsafe_allow_html=True)
-    for k, v in [("Target",">£50K annual income"),("Source","UCI Adult Income"),
+    for k, v in [("Target",">US$50K annual income"),("Source","UCI Adult Income"),
                   ("Sensitive","Gender, Race"),("Models","Logistic Reg. + RF")]:
         st.markdown(f"""
         <div style="margin-bottom:12px;">
@@ -429,8 +443,8 @@ with st.sidebar:
         </div>""", unsafe_allow_html=True)
 
     st.divider()
-    st.markdown(eyebrow("Fairness Thresholds"), unsafe_allow_html=True)
-    for name, thresh in [("SPD","< 0.10"),("DI","> 0.80"),("TPR Gap","< 0.10"),("Cal. Gap","< 0.05")]:
+    st.markdown(eyebrow("Illustrative audit tolerances"), unsafe_allow_html=True)
+    for name, thresh in [("SPD","< 0.10"),("DI","≥ 0.80"),("TPR Gap","< 0.10"),("Cal. Gap","< 0.05")]:
         st.markdown(f"""
         <div style="display:flex;justify-content:space-between;align-items:baseline;
                     padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.07);">
@@ -472,6 +486,9 @@ shap_imp    = ensure_feature_col(load_csv("shap_importance.csv"))
 shap_grp    = ensure_feature_col(load_csv("shap_by_group.csv"))
 proxy_df    = load_csv("proxy_variables.csv")
 intersect   = load_csv("intersectional_bias.csv")
+
+st.caption("Saved experiment results. Fairness audit: Logistic Regression; SHAP: Random Forest. "
+           "Audit tolerances are illustrative. Calibration charts compare group means, not full reliability curves.")
 
 tabs = st.tabs(["Overview","Model Performance","Bias Detection",
                 "Intersectionality","Explainability","Mitigation"])
@@ -528,12 +545,14 @@ with tabs[0]:
     fr = bias_before["race"]
     rows = [
         ["Gender", "Statistical Parity",      f"{fg['statistical_parity']['spd']:.4f}",          "< 0.10", pill(fg['statistical_parity']['is_fair'])],
-        ["Gender", "Disparate Impact",         f"{fg['disparate_impact']['worst_di']:.4f}",        "> 0.80", pill(fg['disparate_impact']['is_fair'])],
+        ["Gender", "Disparate Impact",         f"{fg['disparate_impact']['worst_di']:.4f}",        "≥ 0.80", pill(fg['disparate_impact']['is_fair'])],
         ["Gender", "Equalized Odds (TPR gap)", f"{fg['equalized_odds']['tpr_gap']:.4f}",           "< 0.10", pill(fg['equalized_odds']['is_fair_tpr'])],
+        ["Gender", "Equalized Odds (FPR gap)", f"{fg['equalized_odds']['fpr_gap']:.4f}",           "< 0.10", pill(fg['equalized_odds']['is_fair_fpr'])],
         ["Gender", "Calibration Gap",          f"{fg['calibration']['max_calibration_gap']:.4f}", "< 0.05", pill(fg['calibration']['is_calibrated'])],
         ["Race",   "Statistical Parity",       f"{fr['statistical_parity']['spd']:.4f}",          "< 0.10", pill(fr['statistical_parity']['is_fair'])],
-        ["Race",   "Disparate Impact",         f"{fr['disparate_impact']['worst_di']:.4f}",        "> 0.80", pill(fr['disparate_impact']['is_fair'])],
+        ["Race",   "Disparate Impact",         f"{fr['disparate_impact']['worst_di']:.4f}",        "≥ 0.80", pill(fr['disparate_impact']['is_fair'])],
         ["Race",   "Equalized Odds (TPR gap)", f"{fr['equalized_odds']['tpr_gap']:.4f}",           "< 0.10", pill(fr['equalized_odds']['is_fair_tpr'])],
+        ["Race",   "Equalized Odds (FPR gap)", f"{fr['equalized_odds']['fpr_gap']:.4f}",           "< 0.10", pill(fr['equalized_odds']['is_fair_fpr'])],
     ]
     tbl = pd.DataFrame(rows, columns=["Attribute", "Metric", "Value", "Threshold", "Status"])
     st.write(tbl.to_html(escape=False, index=False), unsafe_allow_html=True)
@@ -606,7 +625,7 @@ with tabs[1]:
         f"LR: <strong style='color:#f0ede8'>{auc_lr:.4f}</strong> &nbsp;·&nbsp; "
         f"RF: <strong style='color:#f0ede8'>{auc_rf:.4f}</strong> &nbsp;·&nbsp; "
         f"{better} leads by {diff:.4f}. "
-        "Both exceed 0.85. Logistic Regression preferred for this audit — "
+        "Logistic Regression is used for the fairness audit — "
         "coefficients are directly interpretable by stakeholders and regulators.",
     ), unsafe_allow_html=True)
 
@@ -647,9 +666,9 @@ with tabs[2]:
         st.markdown(kpi_card(f"{sp['spd']:.4f}", "SPD",
                     TEAL if sp['is_fair'] else CORAL, "< 0.10 fair"), unsafe_allow_html=True)
     with c3:
-        st.markdown(kpi_card("Fair" if sp['is_fair'] else "Biased", "Status",
+        st.markdown(kpi_card("Within tolerance" if sp['is_fair'] else "Outside tolerance", "Status",
                     TEAL if sp['is_fair'] else CORAL), unsafe_allow_html=True)
-    st.caption("SPD = 0 implies equal positive prediction rates. SPD < 0.10 is the accepted threshold.")
+    st.caption("SPD = 0 implies equal positive prediction rates. Here SPD is max minus min group selection rate; 0.10 is an illustrative tolerance, not a universal fairness standard.")
 
     # Disparate Impact
     st.markdown("<br>", unsafe_allow_html=True)
@@ -677,8 +696,8 @@ with tabs[2]:
         st.plotly_chart(fig, width='stretch')
     with c2:
         st.markdown(kpi_card(f"{di['worst_di']:.4f}", "Worst DI",
-                    TEAL if di['is_fair'] else CORAL, "> 0.80 fair"), unsafe_allow_html=True)
-    st.caption("DI = 1 is perfect parity. Values below 0.80 carry legal risk under UK Equality Act 2010.")
+                    TEAL if di['is_fair'] else CORAL, "≥ 0.80 fair"), unsafe_allow_html=True)
+    st.caption("DI compares each group with the highest selection-rate group. The 0.80 cutoff is a screening heuristic, not a legal finding or guarantee of fairness.")
 
     # Equalized Odds
     st.markdown("<br>", unsafe_allow_html=True)
@@ -754,7 +773,7 @@ with tabs[3]:
     </div>
     """, unsafe_allow_html=True)
 
-    if intersect is None:
+    if intersect is None or intersect.empty:
         st.warning("Run `python pipeline.py` to generate intersectional data.")
     else:
         c1, c2 = st.columns([2, 1])
@@ -803,6 +822,7 @@ with tabs[3]:
         st.plotly_chart(fig2, width='stretch')
 
         st.markdown("<br>", unsafe_allow_html=True)
+        st.caption("Groups with fewer than 30 test examples are omitted. Small groups have uncertain estimates.")
         st.markdown(eyebrow("Raw Data"), unsafe_allow_html=True)
         st.dataframe(
             intersect.style.background_gradient(subset=["positive_rate"], cmap="RdYlGn"),
@@ -825,7 +845,7 @@ with tabs[4]:
     if shap_imp is None:
         st.warning("Run `python pipeline.py` to generate SHAP data.")
     else:
-        top_n  = st.slider("Top N features", 5, 20, 15)
+        top_n = st.slider("Top N features", 1, len(shap_imp), min(10, len(shap_imp)))
         df_top = shap_imp.head(top_n).copy()
         c1, c2 = st.columns(2)
 
@@ -850,7 +870,7 @@ with tabs[4]:
         with c2:
             st.markdown(eyebrow("Per-Group SHAP"), unsafe_allow_html=True)
             if shap_grp is not None:
-                grp_top    = shap_grp.head(top_n).copy()
+                grp_top = shap_grp.set_index("feature").reindex(df_top["feature"]).reset_index()
                 group_cols = [c for c in grp_top.columns if c not in ("feature", "abs_diff")]
                 if len(group_cols) > 0:
                     palette = [GOLD, SLATE, TEAL, CORAL, OCHRE, SAGE, DUST]
@@ -877,9 +897,10 @@ with tabs[4]:
         st.markdown(eyebrow("Proxy Variable Detection"), unsafe_allow_html=True)
         st.markdown(callout(
             "What are proxy variables?",
-            "Features with high Spearman correlation to protected attributes act as proxy "
-            "variables — enabling indirect discrimination even when gender and race are "
-            "excluded from model inputs. Identifying them is a regulatory best practice.",
+            "Spearman correlation screens for associations with protected attributes. "
+            "Correlation does not establish discrimination or causation. Nominal categories "
+            "use arbitrary ordinal codes, so their correlations need cautious interpretation. "
+            "This experiment includes gender and race_binary as model inputs.",
             OCHRE
         ), unsafe_allow_html=True)
 
@@ -916,8 +937,8 @@ with tabs[4]:
             (GOLD,  "High mean |SHAP|",           "Feature has strong global influence on predictions."),
             (CORAL, "Large per-group difference",  "Feature affects groups differently — potential proxy."),
             (OCHRE, "High proxy correlation",      "Feature encodes sensitive group membership indirectly."),
-            (TEAL,  "Positive SHAP value",         "Pushes prediction toward > £50K income class."),
-            (SLATE, "Negative SHAP value",         "Pushes prediction toward ≤ £50K income class."),
+            (TEAL,  "Positive SHAP value",         "Pushes prediction toward > US$50K income class."),
+            (SLATE, "Negative SHAP value",         "Pushes prediction toward ≤ US$50K income class."),
         ]:
             st.markdown(f"""
             <div style="display:flex;align-items:baseline;gap:14px;padding:9px 0;
@@ -940,8 +961,8 @@ with tabs[5]:
     <div class="ed-deck">
         Two complementary strategies were applied: Reweighing (pre-processing) adjusts
         training sample weights; Threshold Adjustment (post-processing) shifts the
-        classification boundary per group. McNemar's test confirms whether changes
-        are statistically significant.
+        single decision threshold selected on validation data. McNemar's test compares
+        paired error rates; it does not test fairness improvement.
     </div>
     """, unsafe_allow_html=True)
 
@@ -961,6 +982,8 @@ with tabs[5]:
             st.json(mitigation); st.stop()
         if not thr:
             st.warning(f"Threshold adjustment not found. Keys: {list(mitigation.keys())}")
+        elif not thr.get("validation_selection", {}).get("feasible", True):
+            st.warning("No candidate met the validation accuracy floor; the baseline threshold is used.")
 
         st.markdown(eyebrow("Performance & Fairness Comparison"), unsafe_allow_html=True)
         row_defs = [
@@ -990,7 +1013,7 @@ with tabs[5]:
                 fig.add_trace(go.Bar(
                     name=name, x=["SPD", "TPR Gap"],
                     y=[abs(scenario.get("gender_spd", 0)),
-                       abs(scenario.get("gender_tpr_gap", 0))],
+                       scenario.get("gender_tpr_gap")],
                     marker_color=color, marker_line_width=0, opacity=0.88,
                 ))
             fig.add_hline(y=0.1, line_dash="dash",
@@ -1010,16 +1033,16 @@ with tabs[5]:
                     y=[scenario.get("accuracy",0), scenario.get("f1",0), scenario.get("roc_auc",0)],
                     marker_color=color, marker_line_width=0, opacity=0.88,
                 ))
-            fig2.update_layout(**CL(barmode="group", height=320, yaxis={"range":[0.75,1.0]}))
+            fig2.update_layout(**CL(barmode="group", height=320, yaxis={"range":[0,1.0]}))
             st.plotly_chart(fig2, width='stretch')
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown(eyebrow("Statistical Significance — McNemar's Test"), unsafe_allow_html=True)
         st.markdown(callout(
             "Why McNemar's test?",
-            "McNemar's test evaluates whether the pattern of prediction disagreements between "
-            "two models is statistically random. A significant result (p < 0.05) confirms the "
-            "mitigation genuinely altered model behaviour — not by chance.",
+            "McNemar's test compares paired classification errors on the same test examples. "
+            "A small p-value is evidence of different error rates under its assumptions. "
+            "It does not establish that fairness improved or explain why predictions changed.",
             SLATE
         ), unsafe_allow_html=True)
 
@@ -1057,14 +1080,14 @@ with tabs[5]:
         spd_rr   = (orig_spd - rw_spd) / abs(orig_spd) * 100
         acc_rr   = (orig.get("accuracy", 0) - rw.get("accuracy", 0)) * 100
 
-        rows_summary = [("Reweighing", f"{spd_rr:.1f}%", f"{acc_rr:+.2f}%",
-                         "Pre-processing — minimal accuracy cost", OCHRE)]
+        rows_summary = [("Reweighing", f"{spd_rr:.1f}%", f"{acc_rr:+.2f} pp",
+                         "Pre-processing — training sample weights", OCHRE)]
         if thr:
             thr_spd = thr.get("gender_spd", 0)
             spd_tr  = (orig_spd - thr_spd) / abs(orig_spd) * 100
             acc_tr  = (orig.get("accuracy", 0) - thr.get("accuracy", 0)) * 100
-            rows_summary.append(("Threshold Adj.", f"{spd_tr:.1f}%", f"{acc_tr:+.2f}%",
-                                 "Post-processing — largest fairness gain", TEAL))
+            rows_summary.append(("Threshold Adj.", f"{spd_tr:.1f}%", f"{acc_tr:+.2f} pp",
+                                 "Post-processing — one validation-selected threshold", TEAL))
 
         for tech, spd_r, acc_c, note, clr in rows_summary:
             st.markdown(f"""
@@ -1097,9 +1120,9 @@ with tabs[5]:
 
         st.markdown(callout(
             "Key Insight",
-            "Both techniques substantially reduce statistical parity difference. "
-            "Threshold adjustment typically achieves the greatest fairness gain at a modest "
-            "accuracy cost; reweighing is more conservative. The right choice depends on the "
+            "Compare the measured SPD reduction with the accuracy change above. "
+            "A negative accuracy cost means accuracy increased. Neither method guarantees "
+            "improvement on every fairness measure. The right choice depends on the "
             "deployment context and the organisation's acceptable fairness–accuracy trade-off — "
             "a decision that should involve both technical and ethics stakeholders.",
             GOLD

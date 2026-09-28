@@ -58,7 +58,8 @@ def ensure_data():
 
 # ─────────────────────────────────────────────
 def convert(o):
-   
+    if isinstance(o, np.bool_):
+        return bool(o)
 
     if isinstance(o, (np.integer, np.int64)):
         return int(o)
@@ -75,25 +76,18 @@ def convert(o):
     if isinstance(o, pd.Series):
         return o.tolist()
 
-    # sklearn / complex objects fallback
-    if hasattr(o, "__dict__"):
-        return str(o)
-
-    return str(o)
+    raise TypeError(f"Unsupported JSON value: {type(o).__name__}")
 
 
 # ─────────────────────────────────────────────
 def save_json(obj, filename):
     path = os.path.join(RESULTS_DIR, filename)
 
-    try:
-        # deep-safe conversion (kills circular references)
-        safe_obj = json.loads(json.dumps(obj, default=convert))
-    except Exception:
-        safe_obj = str(obj)
-
-    with open(path, "w") as f:
-        json.dump(safe_obj, f, indent=2)
+    payload = json.dumps(obj, default=convert, allow_nan=False, indent=2)
+    temporary = path + ".tmp"
+    with open(temporary, "w", encoding="utf-8") as f:
+        f.write(payload)
+    os.replace(temporary, path)
 
     print(f"  Saved {filename}")
 
@@ -104,8 +98,8 @@ def run():
     ensure_data()
 
     (X_train, X_test, y_train, y_test,
-     sens_train, sens_test, feature_names, scaler) = run_preprocessing(
-        TRAIN_PATH, TEST_PATH
+     sens_train, sens_test, feature_names, scaler, X_val, y_val, sens_val) = run_preprocessing(
+        TRAIN_PATH, TEST_PATH, validation_size=0.2
     )
 
     print(f"  Train: {len(X_train):,} | Test: {len(X_test):,} | Features: {len(feature_names)}")
@@ -185,7 +179,7 @@ def run():
     lr_rw_metrics = evaluate_model(lr_rw, X_test, y_test)
 
     best_thresh = find_fair_threshold(
-        y_test, lr_metrics["y_proba"], sens_test["gender_raw"]
+        y_val, lr.predict_proba(X_val)[:, 1], sens_val["gender_raw"]
     )
 
     lr_thresh_metrics = evaluate_model(
@@ -205,6 +199,8 @@ def run():
         sens_test, "gender_raw", "gender"
     )
 
+    save_json(bias_after_rw, "bias_after_reweighing.json")
+    save_json(bias_after_th, "bias_after_threshold.json")
     mitigation_results = {
         "original": {
             "accuracy": float(lr_metrics["accuracy"]),
@@ -229,7 +225,16 @@ def run():
         }
     }
 
+    for name, report in [("original", bias_gender), ("reweighing", bias_after_rw), ("threshold", bias_after_th)]:
+        mitigation_results[name]["gender_tpr_gap"] = report["equalized_odds"]["tpr_gap"]
+        mitigation_results[name]["gender_fpr_gap"] = report["equalized_odds"]["fpr_gap"]
+    mitigation_results["threshold"]["validation_selection"] = best_thresh
     save_json(mitigation_results, "mitigation_comparison.json")
+    save_json({"random_state": 42, "train_rows": len(X_train), "validation_rows": len(X_val),
+               "test_rows": len(X_test), "features": feature_names,
+               "split": "Pooled official files; stratified 64/16/20 train/validation/test",
+               "shap_model": "RandomForest", "audit_model": "LogisticRegression",
+               "shap_rows": len(X_shap)}, "run_metadata.json")
 
     print("\n[6/6] Pipeline complete ✓")
     print(f"Results saved in: {RESULTS_DIR}")

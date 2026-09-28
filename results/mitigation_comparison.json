@@ -1,31 +1,43 @@
 {
   "original": {
-    "accuracy": 0.7735765616362631,
-    "f1": 0.6251830161054174,
-    "roc_auc": 0.8477000491597151,
-    "gender_spd": 0.3506
+    "accuracy": 0.7718076285240464,
+    "f1": 0.6217008797653959,
+    "roc_auc": 0.8474674944660899,
+    "gender_spd": 0.3472,
+    "gender_tpr_gap": 0.3733,
+    "gender_fpr_gap": 0.2337
   },
   "reweighing": {
-    "accuracy": 0.7512437810945274,
-    "f1": 0.5853298931072614,
-    "roc_auc": 0.8290521393261592,
-    "gender_spd": 0.1087,
+    "accuracy": 0.7502487562189055,
+    "f1": 0.584360625574977,
+    "roc_auc": 0.8277228338812062,
+    "gender_spd": 0.1002,
     "mcnemar": {
-      "chi2": 40.3204,
-      "p_value": 0.0,
-      "significant": "True"
-    }
+      "chi2": 37.07980295566502,
+      "p_value": 1.1339215087302125e-09,
+      "significant": true
+    },
+    "gender_tpr_gap": 0.0236,
+    "gender_fpr_gap": 0.0066
   },
   "threshold": {
-    "accuracy": 0.8176893311221669,
-    "f1": 0.5596795727636849,
-    "roc_auc": 0.8477000491597151,
-    "threshold_used": 0.74,
-    "gender_spd": 0.187,
+    "accuracy": 0.8164731896075179,
+    "f1": 0.5573333333333333,
+    "roc_auc": 0.8474674944660899,
+    "threshold_used": 0.7400000000000004,
+    "gender_spd": 0.1878,
     "mcnemar": {
-      "chi2": 92.1489,
-      "p_value": 0.0,
-      "significant": "True"
+      "chi2": 95.19871043376318,
+      "p_value": 1.722024224225884e-22,
+      "significant": true
+    },
+    "gender_tpr_gap": 0.2808,
+    "gender_fpr_gap": 0.0856,
+    "validation_selection": {
+      "threshold": 0.7400000000000004,
+      "fairness_gap": 0.1746,
+      "accuracy": 0.822139303482587,
+      "feasible": true
     }
   }
 }

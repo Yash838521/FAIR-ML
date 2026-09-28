@@ -1,0 +1,26 @@
+{
+  "random_state": 42,
+  "train_rows": 28941,
+  "validation_rows": 7236,
+  "test_rows": 9045,
+  "features": [
+    "age",
+    "workclass",
+    "fnlwgt",
+    "education",
+    "education_num",
+    "marital_status",
+    "occupation",
+    "relationship",
+    "gender",
+    "capital_gain",
+    "capital_loss",
+    "hours_per_week",
+    "native_country",
+    "race_binary"
+  ],
+  "split": "Pooled official files; stratified 64/16/20 train/validation/test",
+  "shap_model": "RandomForest",
+  "audit_model": "LogisticRegression",
+  "shap_rows": 500
+}

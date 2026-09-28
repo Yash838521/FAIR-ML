@@ -22,8 +22,8 @@ from itertools import combinations
 def compute_statistical_parity(y_pred, sensitive_series) -> dict:
     """
     Statistical Parity Difference (SPD):
-    P(ŷ=1 | privileged) - P(ŷ=1 | unprivileged)
-    SPD = 0 is ideal; |SPD| < 0.1 is generally acceptable.
+    Maximum minus minimum group selection rate (unsigned).
+    The 0.1 tolerance is illustrative, not a universal fairness standard.
     """
     groups = sensitive_series.unique()
     rates = {}
@@ -47,7 +47,8 @@ def compute_disparate_impact(y_pred, sensitive_series,
                               privileged_value=None) -> dict:
     """
     Disparate Impact (DI) = P(ŷ=1 | unprivileged) / P(ŷ=1 | privileged)
-    DI >= 0.8 is the 80% rule (acceptable range).
+    By default the reference is the group with the highest selection rate.
+    The 0.8 cutoff is a screening heuristic, not a legal conclusion.
     """
     groups = sensitive_series.unique()
     rates = {}
@@ -61,8 +62,11 @@ def compute_disparate_impact(y_pred, sensitive_series,
         priv = str(privileged_value)
 
     unpriv_rates = {k: v for k, v in rates.items() if k != priv}
-    if not unpriv_rates:
-        return {"di": 1.0, "is_fair": True}
+    if not unpriv_rates or rates[priv] == 0:
+        return {"group_rates": rates, "privileged_group": priv,
+                "di_per_group": {k: None for k in unpriv_rates},
+                "worst_di": None, "is_fair": False,
+                "defined": False}
 
     di_values = {}
     for k, v in unpriv_rates.items():
@@ -182,7 +186,7 @@ def compute_intersectional_bias(y_test, y_pred, sens_df: pd.DataFrame,
             "FPR": round(fpr, 4),
         })
 
-    df = pd.DataFrame(records).sort_values("positive_rate")
+    df = pd.DataFrame(records, columns=["group", "n", "positive_rate", "TPR", "FPR"]).sort_values("positive_rate")
     return df
 
 
@@ -194,7 +198,7 @@ def compute_reweighing_weights(y_train, sensitive_series) -> np.ndarray:
     """
     Reweighing (Kamiran & Calders, 2012):
     Assigns sample weights so that every (group, label) cell has
-    equal expected weight, removing statistical dependence between
+    the expected weight under independence, removing empirical dependence between
     the sensitive attribute and the target.
 
     w(group, label) = P(group) * P(label) / P(group, label)

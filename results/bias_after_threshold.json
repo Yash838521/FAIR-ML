@@ -1,0 +1,60 @@
+{
+  "statistical_parity": {
+    "group_rates": {
+      "Female": 0.04088471849865952,
+      "Male": 0.22867513611615245
+    },
+    "spd": 0.1878,
+    "max_group": "Male",
+    "min_group": "Female",
+    "is_fair": false
+  },
+  "disparate_impact": {
+    "group_rates": {
+      "Female": 0.04088471849865952,
+      "Male": 0.22867513611615245
+    },
+    "privileged_group": "Male",
+    "di_per_group": {
+      "Female": 0.1788
+    },
+    "worst_di": 0.1788,
+    "is_fair": false
+  },
+  "equalized_odds": {
+    "per_group": {
+      "Female": {
+        "TPR": 0.2295,
+        "FPR": 0.0156,
+        "PPV": 0.6639,
+        "support": 2984
+      },
+      "Male": {
+        "TPR": 0.5103,
+        "FPR": 0.1012,
+        "PPV": 0.6955,
+        "support": 6061
+      }
+    },
+    "tpr_gap": 0.2808,
+    "fpr_gap": 0.0856,
+    "is_fair_tpr": false,
+    "is_fair_fpr": true
+  },
+  "calibration": {
+    "per_group": {
+      "Female": {
+        "mean_predicted": 0.2242,
+        "actual_rate": 0.1183,
+        "gap": 0.1059
+      },
+      "Male": {
+        "mean_predicted": 0.4855,
+        "actual_rate": 0.3117,
+        "gap": 0.1738
+      }
+    },
+    "max_calibration_gap": 0.1738,
+    "is_calibrated": false
+  }
+}

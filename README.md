@@ -15,22 +15,32 @@ equalized-odds gaps and calibration. It also includes intersectional analysis,
 SHAP-based explainability, proxy-variable checks, reweighing and threshold
 adjustment.
 
-## Achieved results
+## Reproduced results after the audit repair
 
-| Experiment | Accuracy | ROC-AUC | Gender SPD |
-|---|---:|---:|---:|
-| Random Forest | 0.8583 | 0.9089 | - |
-| Logistic Regression | 0.7736 | 0.8477 | 0.3506 |
-| Logistic Regression with reweighing | 0.7512 | 0.8291 | 0.1087 |
-| Logistic Regression with threshold adjustment | 0.8177 | 0.8477 | 0.1870 |
+| Experiment | Accuracy | ROC-AUC | Gender SPD | TPR gap | FPR gap |
+|---|---:|---:|---:|---:|---:|
+| Random Forest | 0.8482 | 0.9091 | Not audited | — | — |
+| Logistic Regression | 0.7718 | 0.8475 | 0.3472 | 0.3733 | 0.2337 |
+| LR + reweighing | 0.7502 | 0.8277 | 0.1002 | 0.0236 | 0.0066 |
+| LR + shared threshold | 0.8165 | 0.8475 | 0.1878 | 0.2808 | 0.0856 |
 
-Reweighing reduced gender statistical parity difference from 0.3506 to 0.1087,
-while accuracy moved from 0.7736 to 0.7512. These results demonstrate a measurable
-fairness-performance trade-off rather than claiming that bias was eliminated.
+These results use 28,941 training, 7,236 validation,
+and 9,045 test records after complete-case cleaning (45,222 retained
+from 48,842 source records). The original UCI files are pooled and re-split, not
+evaluated using their original partition. Seed: 42. Python: 3.11.
 
-The Random Forest model achieved the strongest predictive performance. SHAP
-analysis was used to explain behaviour across 14 model features, while group and
-proxy analyses examined how sensitive and correlated variables affected outcomes.
+The shared threshold (0.74) is selected only on validation data
+to minimise gender SPD with a validation accuracy floor of 0.78. Reweighing reduces
+gender SPD by 71.1% relative to the baseline on this test split. These are
+trade-offs, not a claim that bias is eliminated. The main fairness audit and
+mitigation concern Logistic Regression; the SHAP explanations concern Random Forest.
+McNemar's test compares paired error rates and does not test fairness improvement.
+
+Important limitations: nominal features use ordinal codes; gender and race_binary
+are included as inputs; group-mean calibration is not a full reliability analysis;
+Spearman association is only a proxy screening signal; intersectional groups with
+fewer than 30 test examples are omitted; uncertainty intervals are not reported.
+The 0.10/0.80/0.05 audit tolerances are illustrative, not universal or legal standards.
 
 ## Pipeline
 
@@ -61,6 +71,10 @@ FAIR-ML/
 ```
 
 ## Run locally
+
+Use Python 3.11 with the pinned dependencies. The dashboard can run immediately
+from the committed results; running the full pipeline regenerates them and takes
+several minutes, mainly for SHAP.
 
 ```bash
 git clone https://github.com/Yash838521/FAIR-ML.git
@@ -102,3 +116,21 @@ are diagnostic tools and do not establish that a model is fair in every context.
 - Hardt, M., Price, E. and Srebro, N. (2016), equality of opportunity in supervised learning
 - Lundberg, S. and Lee, S. (2017), SHAP
 - UCI Machine Learning Repository, Adult dataset
+
+## Verification and maintenance
+
+```bash
+pip install pytest
+python -m pytest -q
+pip check
+```
+
+GitHub Actions runs regression tests, including Streamlit widget checks. Tests
+cover three-way split isolation, known fairness examples, SHAP class-axis and
+feature labels, Spearman correlation, empty tables, threshold infeasibility,
+McNemar edge cases, strict JSON types, and missing-result behaviour.
+
+Streamlit Community Cloud should run `dashboard/streamlit_app.py` from `main`.
+Commit regenerated `results/` files with experiment changes. Community Cloud may
+sleep after inactivity; use its wake button before a presentation. A healthy app
+does not guarantee that the hosting service will always remain available.
